@@ -86,12 +86,12 @@ func (v *Visits) Start() {
 }
 
 func exists(db *sql.DB, id string) bool {
-  var guid string
-  err := db.QueryRow("select players_id from visits where players_id = ?", id).Scan(&guid)
-  if err != nil {
-    log.Println(err)
-    return false
-  }
+	var guid string
+	err := db.QueryRow("select players_id from visits where players_id = ?", id).Scan(&guid)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
 
-  return true
+	return true
 }
