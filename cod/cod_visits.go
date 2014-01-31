@@ -49,17 +49,19 @@ func (v *Visits) Start() {
 		if ev, ok := in.(cod.Join); ok {
 			if exists(v.db, ev.GUID) {
 				// update
+				log.Println("visits: updating total for player", ev.GUID)
 				_, err := v.db.Exec("update visits set total = total + 1 where players_id = ?;", ev.GUID)
 
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("visits: fatal error in update:", err)
 				}
 			} else {
 				// insert new
+				log.Println("visits: inserting player", ev.GUID, "into database")
 				_, err := v.db.Exec("insert into visits(players_id) values(?);", ev.GUID)
 
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal("visits: fatal error in insert:", err)
 				}
 			}
 
@@ -71,13 +73,10 @@ func (v *Visits) Start() {
 
 			msg, ok := v.cfg["message"].(string)
 			if ok {
-				num := integrated.Num(ev.GUID)
-				if num != -1 {
-					v.requests <- rcon.RCONQuery{Command: "tell " + string(num) + " \"" +
-						fmt.Sprintf(msg, ev.Name, total) + "\"", Response: nil}
-				} else {
-					log.Println("Could not resolve Num for GUID ", ev.GUID, ".")
-				}
+				// it is to be expected that the new GUID is not registered yet
+				num, _ := integrated.Num(ev.GUID)
+				v.requests <- rcon.RCONQuery{Command: "tell " + string(num) + " " +
+					fmt.Sprintf(msg, ev.Name, total), Response: nil}
 			} else {
 				log.Println("Could not cast welcome message. No such messages will be sent.")
 			}
@@ -89,7 +88,6 @@ func exists(db *sql.DB, id string) bool {
 	var guid string
 	err := db.QueryRow("select players_id from visits where players_id = ?", id).Scan(&guid)
 	if err != nil {
-		log.Println(err)
 		return false
 	}
 
