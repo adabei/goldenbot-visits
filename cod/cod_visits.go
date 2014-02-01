@@ -1,4 +1,6 @@
 // Package visits provides a barebones mechanic to greet players.
+// Only the joining player will see this greeting and the number
+// of times he has joined.
 package cod
 
 import (
@@ -7,12 +9,15 @@ import (
 	integrated "github.com/adabei/goldenbot-integrated/cod"
 	"github.com/adabei/goldenbot/events"
 	"github.com/adabei/goldenbot/events/cod"
-	"github.com/adabei/goldenbot/helpers"
 	"github.com/adabei/goldenbot/rcon"
 	"log"
 )
 
-var config map[string]interface{} = map[string]interface{}{"message": "Welcome to the server %v. You have visited %d times."}
+type VisitsConfig struct {
+	Prefix       string
+	FirstMessage string
+	Message      string
+}
 
 const schema = `
 create table visits (
@@ -21,17 +26,15 @@ create table visits (
 );`
 
 type Visits struct {
-	cfg      map[string]interface{}
+	Config   VisitsConfig
 	requests chan rcon.RCONQuery
 	events   chan interface{}
 	db       *sql.DB
 }
 
-func NewVisits(cfg map[string]interface{}, requests chan rcon.RCONQuery, ea events.Aggregator, db *sql.DB) *Visits {
+func NewVisits(config VisitsConfig, requests chan rcon.RCONQuery, ea events.Aggregator, db *sql.DB) *Visits {
 	v := new(Visits)
-	v.cfg = make(map[string]interface{})
-	helpers.Merge(config, v.cfg)
-	helpers.Merge(cfg, v.cfg)
+	v.Config = config
 	v.requests = requests
 	v.events = ea.Subscribe(v)
 	v.db = db
@@ -71,14 +74,19 @@ func (v *Visits) Start() {
 				total = 1
 			}
 
-			msg, ok := v.cfg["message"].(string)
-			if ok {
-				// it is to be expected that the new GUID is not registered yet
-				num, _ := integrated.Num(ev.GUID)
-				v.requests <- rcon.RCONQuery{Command: "tell " + string(num) + " " +
-					fmt.Sprintf(msg, ev.Name, total), Response: nil}
+			var msg string
+			if total != 1 {
+				msg = fmt.Sprintf(v.Config.Message, ev.Name, total)
 			} else {
-				log.Println("Could not cast welcome message. No such messages will be sent.")
+				msg = fmt.Sprintf(v.Config.FirstMessage, ev.Name)
+			}
+
+			num, err := integrated.Num(ev.GUID)
+			if err == nil {
+				v.requests <- rcon.RCONQuery{Command: "tell " + string(num) + " " +
+					v.Config.Prefix + msg, Response: nil}
+			} else {
+				log.Println("visits: could not resolve num for player", ev.GUID)
 			}
 		}
 	}
