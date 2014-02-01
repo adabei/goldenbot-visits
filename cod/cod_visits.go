@@ -11,6 +11,7 @@ import (
 	"github.com/adabei/goldenbot/events/cod"
 	"github.com/adabei/goldenbot/rcon"
 	"log"
+	"strconv"
 )
 
 type VisitsConfig struct {
@@ -81,9 +82,9 @@ func (v *Visits) Start() {
 				msg = fmt.Sprintf(v.Config.FirstMessage, ev.Name)
 			}
 
-			num, err := integrated.Num(ev.GUID)
-			if err == nil {
-				v.requests <- rcon.RCONQuery{Command: "tell " + string(num) + " " +
+			if num, ok := integrated.Num(ev.GUID); ok {
+				log.Println("visits: welcoming player with guid", ev.GUID, "and num", num)
+				v.requests <- rcon.RCONQuery{Command: "tell " + strconv.Itoa(num) + " " +
 					v.Config.Prefix + msg, Response: nil}
 			} else {
 				log.Println("visits: could not resolve num for player", ev.GUID)
