@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-type VisitsConfig struct {
+type Config struct {
 	Prefix       string
 	FirstMessage string
 	Message      string
@@ -27,15 +27,15 @@ create table visits (
 );`
 
 type Visits struct {
-	Config   VisitsConfig
+	cfg      Config
 	requests chan rcon.RCONQuery
 	events   chan interface{}
 	db       *sql.DB
 }
 
-func NewVisits(config VisitsConfig, requests chan rcon.RCONQuery, ea events.Aggregator, db *sql.DB) *Visits {
+func NewVisits(cfg Config, requests chan rcon.RCONQuery, ea events.Aggregator, db *sql.DB) *Visits {
 	v := new(Visits)
-	v.Config = config
+	v.cfg = cfg
 	v.requests = requests
 	v.events = ea.Subscribe(v)
 	v.db = db
@@ -77,15 +77,15 @@ func (v *Visits) Start() {
 
 			var msg string
 			if total != 1 {
-				msg = fmt.Sprintf(v.Config.Message, ev.Name, total)
+				msg = fmt.Sprintf(v.cfg.Message, ev.Name, total)
 			} else {
-				msg = fmt.Sprintf(v.Config.FirstMessage, ev.Name)
+				msg = fmt.Sprintf(v.cfg.FirstMessage, ev.Name)
 			}
 
 			if num, ok := integrated.Num(ev.GUID); ok {
 				log.Println("visits: welcoming player with guid", ev.GUID, "and num", num)
 				v.requests <- rcon.RCONQuery{Command: "tell " + strconv.Itoa(num) + " " +
-					v.Config.Prefix + msg, Response: nil}
+					v.cfg.Prefix + msg, Response: nil}
 			} else {
 				log.Println("visits: could not resolve num for player", ev.GUID)
 			}
